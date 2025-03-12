@@ -4,11 +4,59 @@ import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { PDFDocument } from 'pdf-lib';
 
+type CompressionSettings = {
+  quality: number;
+  useObjectStreams: boolean;
+  addDefaultPage: boolean;
+  objectsPerTick: number;
+};
+
+const compressionPresets: Record<string, { settings: CompressionSettings; description: string }> = {
+  maximum: {
+    settings: {
+      quality: 0.2,
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 100
+    },
+    description: 'דחיסה מקסימלית - מתאים למסמכים טקסט, איכות תמונות נמוכה'
+  },
+  balanced: {
+    settings: {
+      quality: 0.5,
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 50
+    },
+    description: 'דחיסה מאוזנת - מתאים לרוב המסמכים'
+  },
+  minimal: {
+    settings: {
+      quality: 0.8,
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 25
+    },
+    description: 'דחיסה מינימלית - מתאים למסמכים עם תמונות איכותיות'
+  },
+  custom: {
+    settings: {
+      quality: 0.5,
+      useObjectStreams: true,
+      addDefaultPage: false,
+      objectsPerTick: 50
+    },
+    description: 'הגדרות מותאמות אישית'
+  }
+};
+
 export default function Home() {
   const [compressedFile, setCompressedFile] = useState<string | null>(null);
-  const [compressionLevel, setCompressionLevel] = useState<string>('medium');
+  const [compressionLevel, setCompressionLevel] = useState<string>('balanced');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customSettings, setCustomSettings] = useState(compressionPresets.custom.settings);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const onDrop = async (acceptedFiles: File[]) => {
     try {
@@ -27,15 +75,11 @@ export default function Home() {
       const pages = await compressedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
       pages.forEach((page) => compressedPdf.addPage(page));
 
-      let quality = 0.5;
-      if (compressionLevel === 'high') quality = 0.8;
-      if (compressionLevel === 'low') quality = 0.2;
+      const settings = compressionLevel === 'custom' 
+        ? customSettings 
+        : compressionPresets[compressionLevel].settings;
 
-      const compressedBytes = await compressedPdf.save({
-        useObjectStreams: true,
-        addDefaultPage: false,
-        objectsPerTick: 50,
-      });
+      const compressedBytes = await compressedPdf.save(settings);
 
       const blob = new Blob([compressedBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -62,24 +106,82 @@ export default function Home() {
           דוחס PDF חכם
         </h1>
         
-        <div className="mb-8">
-          <label className="block text-sm font-medium mb-2 text-gray-300">רמת דחיסה:</label>
-          <div className="relative">
-            <select
-              value={compressionLevel}
-              onChange={(e) => setCompressionLevel(e.target.value)}
-              className="w-full p-3 rounded-lg bg-gray-700/50 border border-gray-600 text-white appearance-none hover:border-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="mb-8 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2 text-gray-300">פרופיל דחיסה:</label>
+            <div className="relative">
+              <select
+                value={compressionLevel}
+                onChange={(e) => setCompressionLevel(e.target.value)}
+                className="w-full p-3 rounded-lg bg-gray-700/50 border border-gray-600 text-white appearance-none hover:border-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="maximum">דחיסה מקסימלית</option>
+                <option value="balanced">דחיסה מאוזנת</option>
+                <option value="minimal">דחיסה מינימלית</option>
+                <option value="custom">הגדרות מותאמות אישית</option>
+              </select>
+              <div className="absolute inset-y-0 left-0 flex items-center px-3 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <p className="mt-2 text-sm text-gray-400">
+              {compressionPresets[compressionLevel].description}
+            </p>
+          </div>
+
+          <div className="pt-4">
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-2"
             >
-              <option value="low">איכות נמוכה (קובץ קטן יותר)</option>
-              <option value="medium">איכות בינונית (מאוזן)</option>
-              <option value="high">איכות גבוהה (קובץ גדול יותר)</option>
-            </select>
-            <div className="absolute inset-y-0 left-0 flex items-center px-3 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-            </div>
+              {showAdvanced ? 'הסתר הגדרות מתקדמות' : 'הצג הגדרות מתקדמות'}
+            </button>
           </div>
+
+          {showAdvanced && compressionLevel === 'custom' && (
+            <div className="space-y-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-300">איכות תמונה:</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.1"
+                  value={customSettings.quality}
+                  onChange={(e) => setCustomSettings({
+                    ...customSettings,
+                    quality: parseFloat(e.target.value)
+                  })}
+                  className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>דחיסה מקסימלית</span>
+                  <span>איכות מקסימלית</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-300">מהירות עיבוד:</label>
+                <select
+                  value={customSettings.objectsPerTick}
+                  onChange={(e) => setCustomSettings({
+                    ...customSettings,
+                    objectsPerTick: parseInt(e.target.value)
+                  })}
+                  className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+                >
+                  <option value="25">איטי (זיכרון נמוך)</option>
+                  <option value="50">מאוזן</option>
+                  <option value="100">מהיר (זיכרון גבוה)</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         <div
