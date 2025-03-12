@@ -8,12 +8,44 @@
   --background-end-rgb: 17, 24, 39;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-    to bottom,
-    rgb(var(--background-start-rgb)),
-    rgb(var(--background-end-rgb))
-  );
-  min-height: 100vh;
+@layer base {
+  body {
+    @apply antialiased;
+    color: rgb(var(--foreground-rgb));
+    background: radial-gradient(circle at top right, 
+      rgba(var(--background-start-rgb), 0.8),
+      rgba(var(--background-end-rgb), 1)
+    );
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .backdrop-blur-lg {
+    backdrop-filter: blur(16px);
+  }
+}
+
+/* Custom Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
